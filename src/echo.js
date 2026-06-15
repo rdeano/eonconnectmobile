@@ -23,11 +23,13 @@ export function getEcho() {
     echoInstance = new Echo({
         broadcaster:       'reverb',
         Pusher,
-        key:               'hfhkajcmtwwcnafmzc1f',
-        wsHost:            '192.168.254.100',
-        wsPort:            8080,
-        forceTLS:          false,
-        enabledTransports: ['ws'],
+        key:               'eonconnect-key',
+        wsHost:            'eonconnect.setoria.site',
+        wsPort:            443,
+        wssPort:           443,
+        forceTLS:          true,
+        disableStats:      true,
+        enabledTransports: ['ws', 'wss'],
         channelAuthorization: {
             customHandler: ({ channelName, socketId }, callback) => {
                 api.post('/broadcasting/auth', {
@@ -35,7 +37,7 @@ export function getEcho() {
                     socket_id:    socketId,
                 }, {
                     headers: { Authorization: `Bearer ${token}` },
-                    baseURL: 'http://192.168.254.100:8000/api',
+                    baseURL: 'https://eonconnect.setoria.site/api',
                 })
                 .then((res) => {
                     console.log('[Echo] Channel auth success:', channelName);
@@ -47,6 +49,34 @@ export function getEcho() {
                 });
             },
         },
+    });
+
+    const pusher = echoInstance.connector.pusher;
+
+    console.log('[Echo] Connection state:', pusher.connection.state);
+
+    pusher.connection.bind('state_change', (states) => {
+        console.log('[Echo] State:', states.previous, '->', states.current);
+    });
+
+    pusher.connection.bind('connecting', () => {
+        console.log('[Echo] Connecting...');
+    });
+
+    pusher.connection.bind('connected', () => {
+        console.log('[Echo] Connected!');
+    });
+
+    pusher.connection.bind('failed', () => {
+        console.error('[Echo] Failed to connect');
+    });
+
+    pusher.connection.bind('unavailable', () => {
+        console.error('[Echo] Unavailable');
+    });
+
+    pusher.connection.bind('error', (err) => {
+        console.error('[Echo] Error:', JSON.stringify(err));
     });
 
     echoInstance.connector.pusher.connection.bind('connected', () =>

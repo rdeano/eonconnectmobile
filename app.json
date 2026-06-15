@@ -2,6 +2,11 @@
   "expo": {
     "name": "EonConnectMobile",
     "slug": "EonConnectMobile",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "0c8510d4-bfc9-40bd-96bf-af6ca4b1c1f3"
+      }
+    }
   }
 }

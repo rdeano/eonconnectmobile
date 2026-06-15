@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 const api = axios.create({
-    baseURL: 'http://192.168.254.100:8000/api/v1',
+    baseURL: 'https://eonconnect.setoria.site/api/v1',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
