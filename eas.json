@@ -13,8 +13,7 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "googleServicesFile": "./android/app/google-services.json"
+        "buildType": "apk"
       }
     },
     "production": {
