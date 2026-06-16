@@ -33,9 +33,10 @@ function Avatar({ name, size = 32 }) {
 }
 
 export default function ChatScreen({ navigation }) {
-    const [messages, setMessages] = useState([]);
-    const [input,    setInput]    = useState('');
-    const [sending,  setSending]  = useState(false);
+    const [messages,        setMessages]        = useState([]);
+    const [input,           setInput]           = useState('');
+    const [sending,         setSending]         = useState(false);
+    const [receptionOnline, setReceptionOnline] = useState(false);
     const { user, logout } = useAuthStore();
     const flatListRef = useRef(null);
     const unitId = user?.unit_id;
@@ -51,8 +52,33 @@ export default function ChatScreen({ navigation }) {
         if (!unitId) return;
         api.get(`/conversations/${unitId}`).then((res) => {
             setMessages(res.data.data);
+            api.patch(`/conversations/${unitId}/read`).catch(() => {});
         });
     }, [unitId]);
+
+    useEffect(() => {
+        const isReception = (u) => u.role === 'reception';
+        try {
+            getEcho()
+                .join('presence.building')
+                .here((users) => setReceptionOnline(users.some(isReception)))
+                .joining((user) => { if (isReception(user)) setReceptionOnline(true); })
+                .leaving((user) => {
+                    if (isReception(user)) {
+                        const members = getEcho().connector.channels['presence-presence.building']?.members?.members;
+                        const stillOnline = members
+                            ? Object.values(members).some((m) => m.role === 'reception')
+                            : false;
+                        setReceptionOnline(stillOnline);
+                    }
+                });
+        } catch (e) {
+            console.error('[Echo] presence join failed:', e?.message);
+        }
+        return () => {
+            try { getEcho().leave('presence.building'); } catch {}
+        };
+    }, []);
 
     useEffect(() => {
         if (!unitId) return;
@@ -64,6 +90,11 @@ export default function ChatScreen({ navigation }) {
                     const msg = e.message ?? e;
                     setMessages((prev) =>
                         prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]
+                    );
+                })
+                .listen('MessagesRead', () => {
+                    setMessages((prev) =>
+                        prev.map((m) => m.sender_id === user?.id ? { ...m, status: 'read' } : m)
                     );
                 });
         } catch (e) {
@@ -122,9 +153,16 @@ export default function ChatScreen({ navigation }) {
                         <Text style={isSent ? styles.textSent : styles.textReceived}>
                             {item.body}
                         </Text>
-                        <Text style={[styles.time, isSent ? styles.timeSent : styles.timeReceived]}>
-                            {formatTime(item.created_at)}
-                        </Text>
+                        <View style={styles.timeRow}>
+                            <Text style={[styles.time, isSent ? styles.timeSent : styles.timeReceived]}>
+                                {formatTime(item.created_at)}
+                            </Text>
+                            {isSent && (
+                                <Text style={[styles.tick, item.status === 'read' && styles.tickRead]}>
+                                    {item.status === 'read' ? 'Seen' : 'Unread'}
+                                </Text>
+                            )}
+                        </View>
                     </View>
                 </View>
             </>
@@ -138,12 +176,17 @@ export default function ChatScreen({ navigation }) {
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
-                    <View style={styles.headerAvatar}>
-                        <Text style={styles.headerAvatarText}>RC</Text>
+                    <View style={styles.headerAvatarWrap}>
+                        <View style={styles.headerAvatar}>
+                            <Text style={styles.headerAvatarText}>RC</Text>
+                        </View>
+                        {receptionOnline && <View style={styles.onlineDot} />}
                     </View>
                     <View>
                         <Text style={styles.headerTitle}>Reception</Text>
-                        <Text style={styles.headerSub}>EonConnect</Text>
+                        <Text style={[styles.headerSub, receptionOnline && styles.headerSubOnline]}>
+                            {receptionOnline ? 'Online' : 'EonConnect'}
+                        </Text>
                     </View>
                 </View>
                 <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
@@ -215,14 +258,22 @@ const styles = StyleSheet.create({
         backgroundColor:   DARKBLUE,
     },
     headerLeft:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    headerAvatarWrap: { position: 'relative' },
     headerAvatar:     {
         width: 40, height: 40, borderRadius: 20,
         backgroundColor: BLUE,
         alignItems: 'center', justifyContent: 'center',
     },
     headerAvatarText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+    onlineDot: {
+        position: 'absolute', bottom: 1, right: 1,
+        width: 11, height: 11, borderRadius: 6,
+        backgroundColor: '#16a34a',
+        borderWidth: 2, borderColor: DARKBLUE,
+    },
     headerTitle:      { color: '#fff', fontWeight: '700', fontSize: 16 },
     headerSub:        { color: 'rgba(255,255,255,0.55)', fontSize: 11 },
+    headerSubOnline:  { color: '#4ade80' },
     logoutBtn:        {
         paddingHorizontal: 12, paddingVertical: 6,
         borderRadius: 20,
@@ -269,9 +320,12 @@ const styles = StyleSheet.create({
     },
     textSent:     { color: '#fff', fontSize: 14.5, lineHeight: 20 },
     textReceived: { color: '#1a2540', fontSize: 14.5, lineHeight: 20 },
-    time:         { fontSize: 10, marginTop: 3, opacity: 0.7 },
+    timeRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 3 },
+    time:         { fontSize: 10, opacity: 0.7 },
     timeSent:     { color: '#cfe0ff', textAlign: 'right' },
     timeReceived: { color: '#8a97b5' },
+    tick:         { fontSize: 11, color: 'rgba(255,255,255,0.55)' },
+    tickRead:     { color: '#7cd9ff' },
 
     inputRow: {
         flexDirection:  'row',
