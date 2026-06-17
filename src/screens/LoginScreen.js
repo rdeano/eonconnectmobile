@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { TextInput, Button, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import messaging from '@react-native-firebase/messaging';
 import api from '../services/api';
 import useAuthStore from '../stores/useAuthStore';
 
@@ -22,6 +23,16 @@ export default function LoginScreen({ navigation }) {
         try {
             const res = await api.post('/auth/login', { email, password });
             await setAuth(res.data.data.user, res.data.data.token);
+
+            // Sanctum token is now in AsyncStorage — safe to register FCM token
+            try {
+                await messaging().requestPermission();
+                const fcmToken = await messaging().getToken();
+                if (fcmToken) {
+                    await api.post('/push/subscribe', { fcm_token: fcmToken });
+                }
+            } catch {}
+
             navigation.replace('Chat');
         } catch (e) {
             setError(e?.response?.data?.message || e?.message || 'Login failed.');
