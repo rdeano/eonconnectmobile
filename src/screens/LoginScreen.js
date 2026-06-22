@@ -33,7 +33,8 @@ export default function LoginScreen({ navigation }) {
                 }
             } catch {}
 
-            navigation.replace('Chat');
+            const role = res.data.data.user?.role;
+            navigation.replace(role === 'reception' ? 'Conversations' : 'Chat');
         } catch (e) {
             setError(e?.response?.data?.message || e?.message || 'Login failed.');
         } finally {
