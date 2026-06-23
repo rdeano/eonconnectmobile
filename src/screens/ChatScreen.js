@@ -4,6 +4,7 @@ import {
     Platform, TouchableOpacity, StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { TextInput, Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
@@ -272,7 +273,7 @@ export default function ChatScreen({ navigation, route }) {
                         >
                             {callLoading
                                 ? <ActivityIndicator color="#fff" size={14} />
-                                : <Text style={styles.callBtnText}>{'☎'}</Text>
+                                : <Ionicons name="call" size={18} color="#fff" />
                             }
                         </TouchableOpacity>
                     )}
@@ -325,7 +326,7 @@ export default function ChatScreen({ navigation, route }) {
                     >
                         {sending
                             ? <ActivityIndicator color="#fff" size={18} />
-                            : <View style={styles.sendArrow} />
+                            : <Ionicons name="send" size={20} color="#fff" style={{ marginLeft: 2 }} />
                         }
                     </TouchableOpacity>
                 </View>
@@ -377,7 +378,6 @@ const styles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
     },
     callBtnOffline: { backgroundColor: 'rgba(255,255,255,0.2)' },
-    callBtnText: { color: '#fff', fontSize: 16 },
 
     logoutBtn: {
         paddingHorizontal: 12, paddingVertical: 6,
@@ -432,10 +432,4 @@ const styles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
     },
     sendBtnDisabled: { backgroundColor: '#b0bdd6' },
-    sendArrow: {
-        width: 0, height: 0,
-        borderTopWidth: 8, borderBottomWidth: 8, borderLeftWidth: 14,
-        borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: '#fff',
-        marginLeft: 3,
-    },
 });

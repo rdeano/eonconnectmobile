@@ -57,37 +57,44 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
     const type = remoteMessage.data?.type;
 
     if (type === 'call_invite') {
-        await AsyncStorage.setItem('pending_call', JSON.stringify({
-            ...remoteMessage.data,
-            received_at: Date.now(),
-        }));
-        // fullScreenAction launches the app immediately — even on the lock screen —
-        // which is required for incoming call UX. pressAction is the fallback if the
-        // system blocks the full-screen intent (e.g. notification shade tap).
-        await notifee.displayNotification({
+        // Display first to get the auto-assigned ID, then store it in pending_call
+        // so call_ended can cancel the ongoing notification if the caller hangs up.
+        // fullScreenAction launches the app immediately — even on the lock screen.
+        // launchActivity: 'default' explicitly targets MainActivity, required on
+        // Expo bare workflow where auto-detection is unreliable.
+        const notifId = await notifee.displayNotification({
             title: `Incoming call from ${remoteMessage.data.caller_name ?? 'Reception'}`,
-            body: 'Tap to answer',
+            body: 'Pull down to see Accept / Decline buttons',
             android: {
                 channelId: 'calls',
                 importance: AndroidImportance.HIGH,
-                pressAction: { id: 'default' },
-                fullScreenAction: { id: 'default' },
+                pressAction:      { id: 'default', launchActivity: 'default' },
+                fullScreenAction: { id: 'default', launchActivity: 'default' },
+                showChronometer: true,
+                ongoing: true,
                 actions: [
-                    {
-                        title: '❌  Decline',
-                        pressAction: { id: 'decline' },
-                    },
-                    {
-                        title: '📞  Accept',
-                        pressAction: { id: 'accept', launchActivity: 'default' },
-                    },
+                    { title: 'Decline', pressAction: { id: 'decline' } },
+                    { title: 'Accept',  pressAction: { id: 'accept', launchActivity: 'default' } },
                 ],
             },
         });
+        await AsyncStorage.setItem('pending_call', JSON.stringify({
+            ...remoteMessage.data,
+            received_at: Date.now(),
+            notif_id: notifId,
+        }));
         return;
     }
 
     if (type === 'call_ended') {
+        // Cancel the ongoing notification so it doesn't linger if the caller hangs up
+        try {
+            const raw = await AsyncStorage.getItem('pending_call');
+            if (raw) {
+                const { notif_id } = JSON.parse(raw);
+                if (notif_id) await notifee.cancelNotification(notif_id);
+            }
+        } catch {}
         await AsyncStorage.removeItem('pending_call');
         return;
     }
@@ -99,7 +106,11 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
     await notifee.displayNotification({
         title,
         body,
-        android: { channelId: 'messages', importance: AndroidImportance.HIGH },
+        android: {
+            channelId:   'messages',
+            importance:  AndroidImportance.HIGH,
+            pressAction: { id: 'default', launchActivity: 'default' },
+        },
     });
 });
 

@@ -98,17 +98,22 @@ function CallControls({ unitId, onEnd }) {
 
 export default function CallScreen({ navigation, route }) {
     const { token, livekitUrl, callerName, unitId } = route.params;
+    const callStatus = useCallStore((s) => s.status);
 
     useEffect(() => {
         AudioSession.startAudioSession();
         return () => { AudioSession.stopAudioSession(); };
     }, []);
 
+    // Go back whenever the call is reset — covers both local end and remote hang-up via FCM.
+    useEffect(() => {
+        if (callStatus === 'idle') navigation.goBack();
+    }, [callStatus, navigation]);
+
     const handleEnd = useCallback(async () => {
-        useCallStore.getState().reset();
+        useCallStore.getState().reset(); // triggers the effect above to go back
         try { await api.post('/calls/end', { unit_id: unitId }); } catch {}
-        navigation.goBack();
-    }, [unitId, navigation]);
+    }, [unitId]);
 
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Alert, AppState, View, Platform, Linking } from 'react-native';
+import { AppState, View } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Provider as PaperProvider } from 'react-native-paper';
@@ -13,6 +13,7 @@ import CallScreen         from './src/screens/CallScreen';
 import IncomingCallModal  from './src/components/IncomingCallModal';
 import useCallStore from './src/stores/useCallStore';
 import api from './src/services/api';
+import { requestAllPermissions } from './src/utils/permissions';
 
 const Stack         = createNativeStackNavigator();
 const navigationRef = createNavigationContainerRef();
@@ -21,37 +22,11 @@ async function registerFcmToken() {
     const authToken = await AsyncStorage.getItem('token');
     if (!authToken) return;
     try {
-        const status = await messaging().requestPermission();
-        const granted =
-            status === messaging.AuthorizationStatus.AUTHORIZED ||
-            status === messaging.AuthorizationStatus.PROVISIONAL;
-        if (!granted) return;
         const fcmToken = await messaging().getToken();
         if (fcmToken) {
             await api.post('/push/subscribe', { fcm_token: fcmToken });
         }
     } catch {}
-}
-
-async function promptOverlayPermissionOnce() {
-    if (Platform.OS !== 'android') return;
-    const prompted = await AsyncStorage.getItem('overlay_permission_prompted');
-    if (prompted) return;
-    await AsyncStorage.setItem('overlay_permission_prompted', '1');
-    Alert.alert(
-        'Enable Display Over Other Apps',
-        'To show incoming call alerts, please enable "Display over other apps" for EonConnect in Settings.',
-        [
-            { text: 'Later', style: 'cancel' },
-            {
-                text: 'Open Settings',
-                onPress: () => Linking.sendIntent(
-                    'android.settings.action.MANAGE_OVERLAY_PERMISSION',
-                    [{ key: 'package', value: 'com.eonconnect.mobile' }]
-                ),
-            },
-        ]
-    );
 }
 
 export default function App() {
@@ -62,8 +37,7 @@ export default function App() {
             importance: AndroidImportance.HIGH,
         });
 
-        promptOverlayPermissionOnce();
-        registerFcmToken();
+        requestAllPermissions().then(registerFcmToken);
 
         const unsubForeground = messaging().onMessage(async (remoteMessage) => {
             const type = remoteMessage.data?.type;
@@ -89,7 +63,11 @@ export default function App() {
             await notifee.displayNotification({
                 title,
                 body,
-                android: { channelId: 'messages', importance: AndroidImportance.HIGH },
+                android: {
+                    channelId:   'messages',
+                    importance:  AndroidImportance.HIGH,
+                    pressAction: { id: 'default', launchActivity: 'default' },
+                },
             });
         });
 

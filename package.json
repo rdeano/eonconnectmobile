@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@livekit/react-native": "^2.11.1",
     "@livekit/react-native-webrtc": "^144.1.1",
     "@notifee/react-native": "^9.1.8",
